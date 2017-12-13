@@ -111,9 +111,10 @@ do
         if [[ -f ${DIR_NAME}/deleted ]]; then
           echo "WARNING: volume ${DIR_NAME} marked for deletion but still exists"
           DELETION_DATE=$(cat ${DIR_NAME}/deleted)
-          DELETED_DIFF=$(( $(date +%s) - ${DELETION_DATE} )) || 999999
+          DELETED_DIFF=$(( $(date +%s) - DELETION_DATE ))
+          [[ $? != 0 || -z "${DELETED_DIFF}" ]] && DELETED_DIFF=999999
           echo "DELETION_DATE=${DELETION_DATE} , so it was deleted ${DELETED_DIFF} seconds ago"
-          if [[ ${DELETED_DIFF} -qt 600 ]]; then
+          if [[ ${DELETED_DIFF} -gt 600 ]]; then
              echo "WARNING: volume ${DIR_NAME} was delete more then 600s ago, so something went wrong and we delete it by rm -rf"
              rm -rf ${DIR_NAME}
              NORMAL_DELETE_FAILED="Y"
