@@ -14,7 +14,6 @@
 # For each folder we are checking named files with special meaning: deleted, pods, last_used, created
 #   vol-xxxxxx/deleted - this script puts here deletion timestamp. so if it exists and 600s passed since its deletions
 #                        something going wrong and we just delete it by rm -rf
-#   vol-xxxxxx/pods - contains list of pods the volume was used by. We can find volume name by this - see get_volume_by_pod()
 #   vol-xxxxxx/created - creation timestamp, we use it for sorting
 #   vol-xxxxxx/last_used - last_used timestamp
 
@@ -67,10 +66,10 @@ get_volume_inode_usage(){
    df -i ${DF_OPTS} ${VOLUME_PARENT_DIR} | awk 'NR==2 {printf "%d", $3 / $2 * 100}'
 }
 
-get_volume_by_pod() {
-   local POD=$1
-   TEMPLATE='{{range .items}}{{.metadata.name}}    {{index .metadata.annotations "codefresh.io/usedBy" }}{{"\n"}}{{end}}'
-   VOLUME_NAME=$(kubectl get pv -l codefresh-app=dind -ogo-template="$TEMPLATE" | awk -v pod=${POD} '$2 ~ pod {print $1}')
+get_volume_by_path() {
+   local VOLUME_PATH=$1
+   TEMPLATE='{{range .items}}{{.metadata.name}}    {{ .spec.local.path }}{{"\n"}}{{end}}'
+   VOLUME_NAME=$(kubectl get pv -l codefresh-app=dind -ogo-template="$TEMPLATE" | awk -v volume_path=${VOLUME_PATH} '$2 ~ volume_path {print $1}')
 }
 
 delete_local_volume() {
@@ -122,19 +121,10 @@ do
           fi
         fi
 
-        LAST_USED_POD=""
         CREATED="9999999999"
         LAST_USED="9999999999"
 
         # Look for Volume to delete
-        if [[ -f ${DIR_NAME}/pods ]]; then
-           LAST_USED_POD=$(awk '/dind/ {d=$1} END {print d}' < ${DIR_NAME}/pods)
-        fi
-
-        if [[ -z "${LAST_USED_POD}" ]]; then
-           echo "ERROR - cannot get LAST_USED_POD for volume ${DIR_NAME} "
-           continue
-        fi
 
         if [[ -f ${DIR_NAME}/created ]]; then
            CREATED=$(awk 'END {print $1}' < ${DIR_NAME}/created)
@@ -144,7 +134,7 @@ do
            LAST_USED=$(awk 'END {print $1}' < ${DIR_NAME}/last_used)
         fi
 
-        echo "${DIR_NAME}"    "${LAST_USED_POD}"    "${CREATED}"    "${LAST_USED}" >> $VOLUMES_TO_DELETE_LIST
+        echo "${DIR_NAME}"    "${CREATED}"    "${LAST_USED}" >> $VOLUMES_TO_DELETE_LIST
      done
 
      if [[ -n "${NORMAL_DELETE_FAILED}" ]]; then
@@ -157,16 +147,15 @@ do
         #VOLUME_CLEAN_DATA=$(sort -k3 -n ${DIR_LIST_TMP} | awk 'NR==1')
 
         echo "Trying to clean oldest volume first "
-        sort -k3 -n ${VOLUMES_TO_DELETE_LIST} | while read VOLUME_DELETE_DATA
+        sort -k2 -n ${VOLUMES_TO_DELETE_LIST} | while read VOLUME_DELETE_DATA
         do
             echo "    marking for deletion volume_data: ${VOLUME_DELETE_DATA} "
-            VOLUME_DIR=$(echo ${VOLUME_DELETE_DATA} | cut -d' ' -f1)
-            LAST_USED_POD_TO_DELETE=$(echo ${VOLUME_DELETE_DATA} | cut -d' ' -f2)
-            echo "        dir ${VOLUME_DIR} last_used_pod_to_delete = ${LAST_USED_POD_TO_DELETE} , getting volume to delete"
+            VOLUME_PATH=$(echo ${VOLUME_DELETE_DATA} | cut -d' ' -f1)
+            echo "        dir ${VOLUME_PATH} , getting volume to delete"
             echo "    marking for deletion volume_data: ${VOLUME_DELETE_DATA} - by timestamp $(date +%s)"
-            date +%s > ${VOLUME_DIR}/deleted
+            date +%s > ${VOLUME_PATH}/deleted
 
-            VOLUME_TO_DELETE=$(get_volume_by_pod $LAST_USED_POD_TO_DELETE)
+            VOLUME_TO_DELETE=$(get_volume_by_path ${VOLUME_PATH} )
             if [[ $? != 0 || -z "${VOLUME_TO_DELETE}" ]]; then
               echo "WARNING: cannot get persistentVolume by pod ${LAST_USED_POD_TO_DELETE} "
               continue
