@@ -22,14 +22,23 @@
 # 3. Sort VOLUMES_TO_DELETE_LIST by created date, writed "deleted" file and pass first of them to delete_local_volume
 # 4. Continue loop, so if we deleted one volume and disk usage returned to normal, we dont need to delete more
 
+# Debuging / Tesing env:
+#DRY_RUN=1
+#SLEEP_INTERVAL=3
+#LOG_DF_EVERY=60
+#KB_USAGE_THRESHOLD=10
+
+
+
 VOLUME_PARENT_DIR=${VOLUME_PARENT_DIR:-/opt/codefresh/dind-volumes}
 NODE_NAME=${NODE_NAME:-$(hostname)}
 KB_USAGE_THRESHOLD=${KB_USAGE_THRESHOLD:-80}
 INODE_USAGE_THRESHOLD=${INODE_USAGE_THRESHOLD:-80}
+DELETE_BY_RM_AFTER=${DELETE_BY_RM_AFTER:-600}
 
 SLEEP_INTERVAL=${SLEEP_INTERVAL:-60}
 LOG_DF_COUNTER=0
-LOG_DF_EVERY=${LOG_DF_EVERY:-180}
+LOG_DF_EVERY=${LOG_DF_EVERY:-1800}
 
 VOLUME_DIR_PATTERN=${VOLUME_DIR_PATTERN:-"vol-*"}
 
@@ -46,7 +55,11 @@ fi
 
 echo "Stating $0 at $(date) at node $NODE_NAME "
 
-
+debug(){
+  if [[ -n "${DEBUG}" ]]; then
+    echo -e $1
+  fi
+}
 
 display_df(){
     echo -e "\nCurrent disk space usage of $VOLUME_PARENT_DIR at $(date) is: "
@@ -69,7 +82,7 @@ get_volume_inode_usage(){
 get_volume_by_path() {
    local VOLUME_PATH=$1
    TEMPLATE='{{range .items}}{{.metadata.name}}    {{ .spec.local.path }}{{"\n"}}{{end}}'
-   VOLUME_NAME=$(kubectl get pv -l codefresh-app=dind -ogo-template="$TEMPLATE" | awk -v volume_path=${VOLUME_PATH} '$2 ~ volume_path {print $1}')
+   VOLUME_NAME=$(kubectl get pv -l codefresh-app=dind -ogo-template="$TEMPLATE" | awk -v volume_path=${VOLUME_PATH} '$2 == volume_path {print $1}')
 }
 
 delete_local_volume() {
@@ -91,11 +104,25 @@ VOLUMES_TO_DELETE_LIST=/tmp/dir-list.$$
 
 display_df
 
+echo "
+DRY_RUN=${DRY_RUN}
+VOLUME_PARENT_DIR=${VOLUME_PARENT_DIR}
+NODE_NAME=${NODE_NAME}
+KB_USAGE_THRESHOLD=${KB_USAGE_THRESHOLD}
+INODE_USAGE_THRESHOLD=${INODE_USAGE_THRESHOLD}
+DELETE_BY_RM_AFTER=${DELETE_BY_RM_AFTER}
+
+SLEEP_INTERVAL=${SLEEP_INTERVAL}
+LOG_DF_EVERY=${LOG_DF_EVERY}
+VOLUME_DIR_PATTERN=${VOLUME_DIR_PATTERN}
+"
+
 while true
 do
 
   VOLUMES_KB_USAGE=$(get_volume_kb_usage)
   VOLUMES_INODES_USAGE=$(get_volume_inode_usage)
+  debug "date: $(date) -  VOLUMES_KB_USAGE=${VOLUMES_KB_USAGE} of threshold ${KB_USAGE_THRESHOLD}% , VOLUMES_INODES_USAGE=${VOLUMES_INODES_USAGE} of threshold ${INODE_USAGE_THRESHOLD}% "
   if [[ ${VOLUMES_KB_USAGE} -ge ${KB_USAGE_THRESHOLD} || ${VOLUMES_INODES_USAGE} -ge ${INODE_USAGE_THRESHOLD} ]]; then
      echo -e "\n!!!!!!!!!! THRESHOLD Reached - VOLUMES_KB_USAGE=${VOLUMES_KB_USAGE}>${KB_USAGE_THRESHOLD} or VOLUMES_INODES_USAGE=${VOLUMES_INODES_USAGE}>${INODE_USAGE_THRESHOLD}"
      echo "Current date: $(date) , timestamp = $(date +%s) "
@@ -113,11 +140,19 @@ do
           DELETED_DIFF=$(( $(date +%s) - DELETION_DATE ))
           [[ $? != 0 || -z "${DELETED_DIFF}" ]] && DELETED_DIFF=999999
           echo "DELETION_DATE=${DELETION_DATE} , so it was deleted ${DELETED_DIFF} seconds ago"
-          if [[ ${DELETED_DIFF} -gt 600 ]]; then
+          if [[ ${DELETED_DIFF} -gt ${DELETE_BY_RM_AFTER} ]]; then
              echo "WARNING: volume ${DIR_NAME} was delete more then 600s ago, so something went wrong and we delete it by rm -rf"
-             rm -rf ${DIR_NAME}
+             RM=rm
+             if [[ -n "${DRY_RUN}" ]]; then
+                echo "DRY_RUN mode - just echo rm commands"
+                RM="echo rm"
+             fi
+
+             $RM -rf ${DIR_NAME}
              NORMAL_DELETE_FAILED="Y"
              break
+          else
+             continue
           fi
         fi
 
@@ -139,6 +174,7 @@ do
 
      if [[ -n "${NORMAL_DELETE_FAILED}" ]]; then
         echo "WARNING: we just deleted some volume by rm -rf, so continue to main loop"
+        sleep 10
         continue
      elif [[ ! -f ${VOLUMES_TO_DELETE_LIST} ]]; then
         echo "WARNING: disk full, but there is not any valid local volume in ${VOLUME_PARENT_DIR} "
