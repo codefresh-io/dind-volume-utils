@@ -82,7 +82,12 @@ get_volume_inode_usage(){
 get_volume_by_path() {
    local VOLUME_PATH=$1
    TEMPLATE='{{range .items}}{{.metadata.name}}    {{ .spec.local.path }}{{"\n"}}{{end}}'
-   VOLUME_NAME=$(kubectl get pv -l codefresh-app=dind -ogo-template="$TEMPLATE" | awk -v volume_path=${VOLUME_PATH} '$2 == volume_path {print $1}')
+   if [[ -z "${DRY_RUN}" ]]; then
+      VOLUME_NAME=$(kubectl get pv -l codefresh-app=dind -ogo-template="$TEMPLATE" | awk -v volume_path=${VOLUME_PATH} '$2 == volume_path {print $1}')
+   else
+      VOLUME_NAME=$(basename ${VOLUME_PATH})
+   fi
+   echo ${VOLUME_NAME}
 }
 
 delete_local_volume() {
@@ -189,7 +194,11 @@ do
             VOLUME_PATH=$(echo ${VOLUME_DELETE_DATA} | cut -d' ' -f1)
             echo "        dir ${VOLUME_PATH} , getting volume to delete"
             echo "    marking for deletion volume_data: ${VOLUME_DELETE_DATA} - by timestamp $(date +%s)"
-            date +%s > ${VOLUME_PATH}/deleted
+            if [[ -n ${DRY_RUN} ]]; then
+              echo "date +%s > ${VOLUME_PATH}/deleted"
+            else
+              date +%s > ${VOLUME_PATH}/deleted
+            fi
 
             VOLUME_TO_DELETE=$(get_volume_by_path ${VOLUME_PATH} )
             if [[ $? != 0 || -z "${VOLUME_TO_DELETE}" ]]; then
