@@ -34,7 +34,7 @@ VOLUME_PARENT_DIR=${VOLUME_PARENT_DIR:-/opt/codefresh/dind-volumes}
 NODE_NAME=${NODE_NAME:-$(hostname)}
 KB_USAGE_THRESHOLD=${KB_USAGE_THRESHOLD:-80}
 INODE_USAGE_THRESHOLD=${INODE_USAGE_THRESHOLD:-80}
-DELETE_BY_RM_AFTER=${DELETE_BY_RM_AFTER:-600}
+DELETE_BY_RM_AFTER=${DELETE_BY_RM_AFTER:-7200}
 
 SLEEP_INTERVAL=${SLEEP_INTERVAL:-60}
 LOG_DF_COUNTER=0
@@ -54,6 +54,30 @@ if [[ ! -d ${VOLUME_PARENT_DIR} ]]; then
 fi
 
 echo "Stating $0 at $(date) at node $NODE_NAME "
+
+debug_trap(){
+  # Just switch debug on/off on SIGUSR1
+
+  if [[ -z "${DEBUG}" ]]; then
+     echo "debug_trap: Switching DEBUG ON"
+     DEBUG="1"
+  else
+     echo "debug_trap: Switching DEBUG OFF"
+     unset DEBUG
+  fi
+}
+trap debug_trap SIGUSR1
+
+pause_trap(){
+  if [[ -z "${PAUSE}" ]]; then
+     echo "pause_trap: Switching PAUSE ON"
+     PAUSE="1"
+  else
+     echo "pause_trap: Switching PAUSE ON"
+     unset PAUSE
+  fi
+}
+trap pause_trap SIGUSR2
 
 debug(){
   if [[ -n "${DEBUG}" ]]; then
@@ -124,6 +148,11 @@ VOLUME_DIR_PATTERN=${VOLUME_DIR_PATTERN}
 
 while true
 do
+  if [[ -n "${PAUSE}" ]]; then
+     echo "$0 Paused - send SIGUSR2 to resume"
+     sleep ${SLEEP_INTERVAL}
+     continue
+  fi
 
   VOLUMES_KB_USAGE=$(get_volume_kb_usage)
   VOLUMES_INODES_USAGE=$(get_volume_inode_usage)
@@ -146,18 +175,20 @@ do
           [[ $? != 0 || -z "${DELETED_DIFF}" ]] && DELETED_DIFF=999999
           echo "DELETION_DATE=${DELETION_DATE} , so it was deleted ${DELETED_DIFF} seconds ago"
           if [[ ${DELETED_DIFF} -gt ${DELETE_BY_RM_AFTER} ]]; then
-             echo "WARNING: volume ${DIR_NAME} was delete more then 600s ago, so something went wrong and we delete it by rm -rf"
-             RM=rm
-             if [[ -n "${DRY_RUN}" ]]; then
-                echo "DRY_RUN mode - just echo rm commands"
-                RM="echo rm"
-             fi
-
-             $RM -rf ${DIR_NAME}
-             NORMAL_DELETE_FAILED="Y"
-             break
-          else
-             continue
+             echo "WARNING: volume ${DIR_NAME} was deleted more then ${DELETE_BY_RM_AFTER}s ago, so something went wrong"
+             # Commented the below - will alert
+#             echo "deleting by rm -rf ${DIR_NAME}"
+#             RM=rm
+#             if [[ -n "${DRY_RUN}" ]]; then
+#                echo "DRY_RUN mode - just echo rm commands"
+#                RM="echo rm"
+#             fi
+#
+#             $RM -rf ${DIR_NAME}
+#             NORMAL_DELETE_FAILED="Y"
+#             break
+#          else
+#             continue
           fi
         fi
 
@@ -177,12 +208,13 @@ do
         echo "${DIR_NAME}"    "${CREATED}"    "${LAST_USED}" >> $VOLUMES_TO_DELETE_LIST
      done
 
-     if [[ -n "${NORMAL_DELETE_FAILED}" ]]; then
+
+     if [[ ! -f ${VOLUMES_TO_DELETE_LIST} ]]; then
+        echo "WARNING: disk full, but there is not any valid local volume in ${VOLUME_PARENT_DIR} "
+     elif [[ -n "${NORMAL_DELETE_FAILED}" ]]; then
         echo "WARNING: we just deleted some volume by rm -rf, so continue to main loop"
         sleep 10
         continue
-     elif [[ ! -f ${VOLUMES_TO_DELETE_LIST} ]]; then
-        echo "WARNING: disk full, but there is not any valid local volume in ${VOLUME_PARENT_DIR} "
      else
         # Sorting dir_list file - taking oldest like
         #VOLUME_CLEAN_DATA=$(sort -k3 -n ${DIR_LIST_TMP} | awk 'NR==1')
