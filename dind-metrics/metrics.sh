@@ -2,8 +2,6 @@
 #
 DIR=$(dirname $0)
 
-source ${DIR}/config
-
 METRICS_DIR=${DIR}/../monitor/metrics
 METRIC_FILE=${METRICS_DIR}/lv_metrics.prom
 METRIC_FILE_TMP=${METRIC_FILE}.$$
@@ -63,11 +61,10 @@ local_volume_last_used_time{$LABELS} ${LAST_USED}
 local_volume_mounts_count{$LABELS} ${MOUNTS_COUNT}
 EOF
         if [[ -f ${DIR_NAME}/deleted ]]; then
-            DELETED=$(awk 'END {print $1}' < ${VOLUME_PATH}/deleted)
-            cat <<EOF >> $METRIC_FILE_TMP
+        cat <<EOF >> $METRIC_FILE_TMP
 # TYPE local_volume_deleted_since gauge
 # HELP local_volume_deleted_since - local volume deletion timestamp
-local_volume_deleted_since{$LABELS} ${CREATED}
+local_volume_creation_time{$LABELS} ${CREATED}
 EOF
         fi
 
