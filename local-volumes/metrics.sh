@@ -15,12 +15,8 @@ METRIC_FILE=${METRIC_FILE}
 COLLECT_INTERVAL=${COLLECT_INTERVAL}
 "
 
-DOCKER_PS_OUT_FILE=/tmp/docker-ps.out
-
-DF_OUT_FILE=/tmp/df.out
-DF_INODES_OUT_FILE=/tmp/df-i.out
-if [[ $(uname) == "Linux" ]]; then
-   DF_OPTS="-B 1024"
+if [[ -d "${METRICS_DIR}" ]]; then
+   mkdir -p "${METRICS_DIR}"
 fi
 
 while true; do
