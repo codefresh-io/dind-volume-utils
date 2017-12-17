@@ -5,12 +5,10 @@ DIR=$(dirname $0)
 source ${DIR}/config
 
 METRICS_DIR=${DIR}/../monitor/metrics
-METRIC_FILE=${METRICS_DIR}/lv_metrics.prom
 
 COLLECT_INTERVAL=15
 
 echo "Started $0 at $(date) on node $NODE_NAME
-METRIC_FILE=${METRIC_FILE}
 COLLECT_INTERVAL=${COLLECT_INTERVAL}
 "
 
@@ -20,15 +18,19 @@ fi
 
 METRICS_dind_volume_creation_time="${METRICS_DIR}"/dind_volume_creation_time.prom
 METRICS_TMP_dind_volume_creation_time="${METRICS_DIR}"/dind_volume_creation_time.prom.tmp.$$
+echo "dind_volume_creation_time metric collected to ${METRICS_dind_volume_creation_time} "
 
 METRICS_dind_volume_last_used_time="${METRICS_DIR}"/dind_volume_last_used_time.prom
 METRICS_TMP_dind_volume_last_used_time="${METRICS_DIR}"/dind_volume_last_used_time.prom.tmp.$$
+echo "dind_volume_last_used_time metric collected to ${METRICS_dind_volume_last_used_time} "
 
 METRICS_dind_volume_mounts_count="${METRICS_DIR}"/dind_volume_mounts_count.prom
 METRICS_TMP_dind_volume_mounts_count="${METRICS_DIR}"/dind_volume_mounts_count.prom.tmp.$$
+echo "dind_volume_mounts_count metric collected to ${METRICS_dind_volume_mounts_count} "
 
 METRICS_dind_volume_deleted_since="${METRICS_DIR}"/dind_volume_deleted_since.prom
 METRICS_TMP_dind_volume_deleted_since="${METRICS_DIR}"/dind_volume_deleted_since.prom.tmp.$$
+echo "dind_volume_deleted_since metric collected to ${METRICS_dind_volume_deleted_since} "
 
 while true; do
     cat <<EOF > "${METRICS_TMP_dind_volume_creation_time}"
