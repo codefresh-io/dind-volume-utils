@@ -57,6 +57,7 @@ local_volume_last_used_time{$LABELS} ${LAST_USED}
 # TYPE local_volume_mounts_count gauge
 # HELP local_volume_mounts_count - local volume mounts count
 local_volume_mounts_count{$LABELS} ${MOUNTS_COUNT}
+
 EOF
         if [[ -f ${DIR_NAME}/deleted ]]; then
             DELETED=$(awk 'END {print $1}' < ${VOLUME_PATH}/deleted)
@@ -64,6 +65,7 @@ EOF
 # TYPE local_volume_deleted_since gauge
 # HELP local_volume_deleted_since - local volume deletion timestamp
 local_volume_deleted_since{$LABELS} ${CREATED}
+
 EOF
         fi
 
