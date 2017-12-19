@@ -72,7 +72,7 @@ get_dind_pvc_metrics(){
               PVC_STATUS="-2"
            ;;
        esac
-       LABELS="pvc_namespace=\"${PVC_NAMESPACE}\",pvc_name=\"${PVC_NAME}\",storage_class=\"${STORAGE_CLASS}\",pod_name=\"${POD_NAME}\",pod_namespace=\"${POD_NAME}\",runtime_env=\"${POD_NAME}\""
+       LABELS="pvc_namespace=\"${PVC_NAMESPACE}\",pvc_name=\"${PVC_NAME}\",storage_class=\"${STORAGE_CLASS}\",dind_pod_name=\"${POD_NAME}\",dind_pod_namespace=\"${POD_NAME}\",runtime_env=\"${POD_NAME}\""
        if [[ -n "${PVC_STATUS}" ]]; then
          echo "${METRIC_NAME}{$LABELS} ${PVC_STATUS}"
        fi
@@ -84,7 +84,7 @@ get_dind_pod_status() {
     local METRIC_NAME=${1:-"pod_status"}
     local LABEL_SELECTOR=${2:-'app in (dind,runtime)'}
 
-    local TEMPLATE_GET_PODS='{{range .items}}{{.metadata.namespace}}{{"\t"}}{{.metadata.name}}{{"\t"}}{{.status.phase}}{{"\n"}}{{end}}'
+    local TEMPLATE_GET_PODS='{{range .items}}{{.metadata.namespace}}{{"\t"}}{{.metadata.name}}{{"\t"}}{{.status.phase}}{{"\t"}}{{"\n"}}{{end}}'
     local POD_NAMESPACE
     local POD_NAME
     local PHASE
@@ -116,7 +116,7 @@ get_dind_pod_status() {
               POD_STATUS="-2"
            ;;
        esac
-       LABELS="pod_namespace=\"${POD_NAMESPACE}\",pod_name=\"${POD_NAME}\""
+       LABELS="dind_pod_namespace=\"${POD_NAMESPACE}\",dind_pod_name=\"${POD_NAME}\""
        if [[ -n "${POD_STATUS}" ]]; then
          echo "${METRIC_NAME}{$LABELS} ${POD_STATUS}"
        fi
@@ -140,7 +140,7 @@ EOF
 # HELP dind_volume_pod_status - dind volume pod status 0 - Pending, 1 - Running, 2 - Succeded, -1 - Unknown
 EOF
 
-    get_dind_pvc_metrics >> "${METRICS_TMP_dind_pvc_status}"
+    get_dind_pvc_metrics "dind_pvc_status" 'codefresh-app=dind' >> "${METRICS_TMP_dind_pvc_status}"
     get_dind_pod_status "dind_pod_status" 'app in (dind,runtime)' >> "${METRICS_TMP_dind_pod_status}"
     get_dind_pod_status "dind_volume_pod_status" 'codefresh-app=dind' >> "${METRICS_TMP_dind_volume_pod_status}"
 
