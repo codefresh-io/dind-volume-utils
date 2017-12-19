@@ -21,41 +21,41 @@ if [[ ! -d ${VOLUME_PARENT_DIR} ]]; then
   mkdir -p ${VOLUME_PARENT_DIR}
 fi
 
-METRICS_dind_volume_creation_time="${METRICS_DIR}"/dind_volume_creation_time.prom
-METRICS_TMP_dind_volume_creation_time="${METRICS_DIR}"/dind_volume_creation_time.prom.tmp.$$
-echo "dind_volume_creation_time metric collected to ${METRICS_dind_volume_creation_time} "
+METRICS_dind_local_volume_creation_time="${METRICS_DIR}"/dind_local_volume_creation_time.prom
+METRICS_TMP_dind_local_volume_creation_time="${METRICS_DIR}"/dind_local_volume_creation_time.prom.tmp.$$
+echo "dind_local_volume_creation_time metric collected to ${METRICS_dind_local_volume_creation_time} "
 
-METRICS_dind_volume_last_used_time="${METRICS_DIR}"/dind_volume_last_used_time.prom
-METRICS_TMP_dind_volume_last_used_time="${METRICS_DIR}"/dind_volume_last_used_time.prom.tmp.$$
-echo "dind_volume_last_used_time metric collected to ${METRICS_dind_volume_last_used_time} "
+METRICS_dind_local_volume_last_used_time="${METRICS_DIR}"/dind_local_volume_last_used_time.prom
+METRICS_TMP_dind_local_volume_last_used_time="${METRICS_DIR}"/dind_local_volume_last_used_time.prom.tmp.$$
+echo "dind_local_volume_last_used_time metric collected to ${METRICS_dind_local_volume_last_used_time} "
 
-METRICS_dind_volume_mounts_count="${METRICS_DIR}"/dind_volume_mounts_count.prom
-METRICS_TMP_dind_volume_mounts_count="${METRICS_DIR}"/dind_volume_mounts_count.prom.tmp.$$
-echo "dind_volume_mounts_count metric collected to ${METRICS_dind_volume_mounts_count} "
+METRICS_dind_local_volume_mounts_count="${METRICS_DIR}"/dind_local_volume_mounts_count.prom
+METRICS_TMP_dind_local_volume_mounts_count="${METRICS_DIR}"/dind_local_volume_mounts_count.prom.tmp.$$
+echo "dind_local_volume_mounts_count metric collected to ${METRICS_dind_local_volume_mounts_count} "
 
-METRICS_dind_volume_deleted_since="${METRICS_DIR}"/dind_volume_deleted_since.prom
-METRICS_TMP_dind_volume_deleted_since="${METRICS_DIR}"/dind_volume_deleted_since.prom.tmp.$$
-echo "dind_volume_deleted_since metric collected to ${METRICS_dind_volume_deleted_since} "
+METRICS_dind_local_volume_deleted_since="${METRICS_DIR}"/dind_local_volume_deleted_since.prom
+METRICS_TMP_dind_local_volume_deleted_since="${METRICS_DIR}"/dind_local_volume_deleted_since.prom.tmp.$$
+echo "dind_local_volume_deleted_since metric collected to ${METRICS_dind_local_volume_deleted_since} "
 
 while true; do
-    cat <<EOF > "${METRICS_TMP_dind_volume_creation_time}"
-# TYPE dind_volume_creation_time gauge
-# HELP dind_volume_creation_time - local volume creation timestamp
+    cat <<EOF > "${METRICS_TMP_dind_local_volume_creation_time}"
+# TYPE dind_local_volume_creation_time gauge
+# HELP dind_local_volume_creation_time - local volume creation timestamp
 EOF
 
-    cat <<EOF > "${METRICS_TMP_dind_volume_last_used_time}"
-# TYPE dind_volume_last_used_time gauge
-# HELP dind_volume_last_used_time - local volume last_used timestamp
+    cat <<EOF > "${METRICS_TMP_dind_local_volume_last_used_time}"
+# TYPE dind_local_volume_last_used_time gauge
+# HELP dind_local_volume_last_used_time - local volume last_used timestamp
 EOF
 
-    cat <<EOF > "${METRICS_TMP_dind_volume_mounts_count}"
-# TYPE dind_volume_mounts_count gauge
-# HELP dind_volume_mounts_count - local volume mounts count
+    cat <<EOF > "${METRICS_TMP_dind_local_volume_mounts_count}"
+# TYPE dind_local_volume_mounts_count gauge
+# HELP dind_local_volume_mounts_count - local volume mounts count
 EOF
 
-    cat <<EOF > "${METRICS_TMP_dind_volume_deleted_since}"
-# TYPE dind_volume_deleted_since gauge
-# HELP dind_volume_deleted_since - local volume deletion timestamp
+    cat <<EOF > "${METRICS_TMP_dind_local_volume_deleted_since}"
+# TYPE dind_local_volume_deleted_since gauge
+# HELP dind_local_volume_deleted_since - local volume deletion timestamp
 EOF
 
     for ii in $(find "${VOLUME_PARENT_DIR}" -mindepth 1 -maxdepth 1 -type d -name "${VOLUME_DIR_PATTERN}")
@@ -81,20 +81,20 @@ EOF
            MOUNTS_COUNT="0"
         fi
 
-        echo "dind_volume_creation_time{$LABELS} ${CREATED}" >> "${METRICS_TMP_dind_volume_creation_time}"
-        echo "dind_volume_last_used_time{$LABELS} ${LAST_USED}" >> "${METRICS_TMP_dind_volume_last_used_time}"
-        echo "dind_volume_mounts_count{$LABELS} ${MOUNTS_COUNT}" >> "${METRICS_TMP_dind_volume_mounts_count}"
+        echo "dind_local_volume_creation_time{$LABELS} ${CREATED}" >> "${METRICS_TMP_dind_local_volume_creation_time}"
+        echo "dind_local_volume_last_used_time{$LABELS} ${LAST_USED}" >> "${METRICS_TMP_dind_local_volume_last_used_time}"
+        echo "dind_local_volume_mounts_count{$LABELS} ${MOUNTS_COUNT}" >> "${METRICS_TMP_dind_local_volume_mounts_count}"
         if [[ -f ${DIR_NAME}/deleted ]]; then
             DELETED=$(awk 'END {print $1}' < ${VOLUME_PATH}/deleted)
-            echo "dind_volume_deleted_since{$LABELS} ${CREATED}" >> "${METRICS_TMP_dind_volume_deleted_since}"
+            echo "dind_local_volume_deleted_since{$LABELS} ${CREATED}" >> "${METRICS_TMP_dind_local_volume_deleted_since}"
         fi
 
     done
 
-    mv "${METRICS_TMP_dind_volume_creation_time}" "${METRICS_dind_volume_creation_time}"
-    mv "${METRICS_TMP_dind_volume_last_used_time}" "${METRICS_dind_volume_last_used_time}"
-    mv "${METRICS_TMP_dind_volume_mounts_count}" "${METRICS_dind_volume_mounts_count}"
-    mv "${METRICS_TMP_dind_volume_deleted_since}" "${METRICS_dind_volume_deleted_since}"
+    mv "${METRICS_TMP_dind_local_volume_creation_time}" "${METRICS_dind_local_volume_creation_time}"
+    mv "${METRICS_TMP_dind_local_volume_last_used_time}" "${METRICS_dind_local_volume_last_used_time}"
+    mv "${METRICS_TMP_dind_local_volume_mounts_count}" "${METRICS_dind_local_volume_mounts_count}"
+    mv "${METRICS_TMP_dind_local_volume_deleted_since}" "${METRICS_dind_local_volume_deleted_since}"
 
    sleep $COLLECT_INTERVAL
 done
