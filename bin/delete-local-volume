@@ -1,0 +1,18 @@
+#!/bin/bash
+#
+NODE_NAME=$1
+VOLUME_NAME=$2
+
+
+# Here we just annotate pod with node_name and set persistentVolumeReclaimPolicy to delete
+echo -e "\n---------------\nDeleting volume ${VOLUME_NAME} on node ${NODE_NAME} "
+KUBECTL=kubectl
+if [[ -n "${DRY_RUN}" ]]; then
+  echo "DRY_RUN mode - just echo kubectl commands"
+  KUBECTL="echo kubectl"
+fi
+
+$KUBECTL annotate pv ${VOLUME_NAME} node_requested_deletion="${NODE_NAME}" || (echo "Cannot Annotate volume ${VOLUME_NAME} " && return 1 )
+$KUBECTL patch pv -p '{"spec":{"persistentVolumeReclaimPolicy":"Delete"}}' ${VOLUME_NAME} || (echo "Cannot Patch volume ${VOLUME_NAME} " && return 1 )
+
+

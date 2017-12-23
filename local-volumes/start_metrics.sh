@@ -18,3 +18,4 @@ METRICS_LOG_FILE=${LOG_DIR}/metrics.log
 echo "Starting metrics.sh in background, log file in $METRICS_LOG_FILE "
 ${DIR}/metrics.sh &>"${METRICS_LOG_FILE}" <&- &
 METRICS_PID=$!
+wait ${METRICS_PID}

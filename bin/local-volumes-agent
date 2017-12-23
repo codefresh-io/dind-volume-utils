@@ -10,6 +10,9 @@ sigterm_trap(){
 
    echo "killing METRICS_PID ${METRICS_PID}"
    kill $METRICS_PID
+
+   echo "killing LV_CLEANER_PID ${LV_CLEANER_PID}"
+   kill $LV_CLEANER_PID
 }
 trap sigterm_trap SIGTERM SIGINT
 
@@ -30,7 +33,7 @@ echo "Starting metrics.sh in background, log file in $METRICS_LOG_FILE "
 ${BASE_DIR}/local-volumes/metrics.sh &>"${METRICS_LOG_FILE}" <&- &
 METRICS_PID=$!
 
-${BASE_DIR}/local-volumes/lv-cleaner.sh
-
-
+${BASE_DIR}/local-volumes/lv-cleaner.sh <&- &
+LV_CLEANER_PID=$!
+wait $LV_CLEANER_PID
 

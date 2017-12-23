@@ -1,15 +1,19 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 echo "Starting dind metric collector in background:
 "
 
 sigterm_trap(){
-   echo "SIGTERM received at $(date)"
+   echo "${1:-SIGTERM} received at $(date)"
 
    echo "killing NODE_EXPORTER_PID ${NODE_EXPORTER_PID}"
    kill $NODE_EXPORTER_PID
+
+   echo "killing METRICS_PID ${METRICS_PID}"
+   kill $METRICS_PID
 }
-trap sigterm_trap SIGTERM SIGINT
+trap 'sigterm_trap sigterm' SIGTERM
+trap 'sigterm_trap sigint' SIGINT
 
 DIR=$(dirname $0)
 BASE_DIR=$(realpath "${DIR}/..")
@@ -23,4 +27,6 @@ ${BASE_DIR}/monitor/node_exporter.sh &>"${NODE_EXPORTER_LOG_FILE}" <&- &
 NODE_EXPORTER_PID=$!
 echo "node_exporter.sh has been started with pid=${NODE_EXPORTER_PID}"
 
-${BASE_DIR}/dind-metrics/metrics.sh
+${BASE_DIR}/dind-metrics/metrics.sh <&- &
+METRICS_PID=$!
+wait $!

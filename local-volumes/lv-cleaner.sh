@@ -17,7 +17,7 @@
 #   vol-xxxxxx/created - creation timestamp, we use it for sorting
 #   vol-xxxxxx/last_used - last_used timestamp
 
-# 1. If we see deleted and its context (delete timestamp) is more than 10min past now, we delete it by rm -rf and continue
+# 1. If we see "deleted" and its context (delete timestamp) is more than 10min past now, we delete it by rm -rf and continue
 # 2. Write all candidates for deletion to VOLUMES_TO_DELETE_LIST tmp file
 # 3. Sort VOLUMES_TO_DELETE_LIST by created date, writed "deleted" file and pass first of them to delete_local_volume
 # 4. Continue loop, so if we deleted one volume and disk usage returned to normal, we dont need to delete more

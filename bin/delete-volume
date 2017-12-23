@@ -1,0 +1,3 @@
+#!/bin/bash
+#
+kubectl patch pv -p '{"spec":{"persistentVolumeReclaimPolicy":"Delete"}}' $@
