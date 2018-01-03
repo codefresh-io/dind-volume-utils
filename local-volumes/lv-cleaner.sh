@@ -130,8 +130,10 @@ delete_local_volume() {
       KUBECTL="echo kubectl"
    fi
 
-   $KUBECTL annotate pv ${VOLUME_NAME} node_requested_deletion="${NODE_NAME}" || (echo "Cannot Annotate volume ${VOLUME_NAME} " && return 1 )
-   $KUBECTL patch pv -p '{"spec":{"persistentVolumeReclaimPolicy":"Delete"}}' ${VOLUME_NAME} || (echo "Cannot Patch volume ${VOLUME_NAME} " && return 1 )
+   echo "Annoting volume ${VOLUME_NAME} node_requested_deletion=${NODE_NAME} ..." && \
+   $KUBECTL annotate --overwrite=true pv ${VOLUME_NAME} node_requested_deletion="${NODE_NAME}"  && \
+   echo "Patching volume ${VOLUME_NAME} spec.persistentVolumeReclaimPolicy=Delete ..." && \
+   $KUBECTL patch pv -p '{"spec":{"persistentVolumeReclaimPolicy":"Delete"}}' ${VOLUME_NAME}
 }
 
 # we will loop for all directories
@@ -172,18 +174,18 @@ do
           if [[ ${DELETED_DIFF} -gt ${DELETE_BY_RM_AFTER} ]]; then
              echo "WARNING: volume ${DIR_NAME} was deleted more then ${DELETE_BY_RM_AFTER}s ago, so something went wrong"
              # Commented the below - will alert
-#             echo "deleting by rm -rf ${DIR_NAME}"
-#             RM=rm
-#             if [[ -n "${DRY_RUN}" ]]; then
-#                echo "DRY_RUN mode - just echo rm commands"
-#                RM="echo rm"
-#             fi
-#
-#             $RM -rf ${DIR_NAME}
-#             NORMAL_DELETE_FAILED="Y"
-#             break
-#          else
-#             continue
+             echo "deleting by rm -rf ${DIR_NAME}"
+             RM=rm
+             if [[ -n "${DRY_RUN}" ]]; then
+                echo "DRY_RUN mode - just echo rm commands"
+                RM="echo rm"
+             fi
+
+             $RM -rf ${DIR_NAME}
+             NORMAL_DELETE_FAILED="Y"
+             break
+          else
+             continue
           fi
         fi
 
@@ -214,8 +216,8 @@ do
         # Sorting dir_list file - taking oldest like
         #VOLUME_CLEAN_DATA=$(sort -k3 -n ${DIR_LIST_TMP} | awk 'NR==1')
 
-        echo "Trying to clean oldest volume first "
-        sort -k2 -n ${VOLUMES_TO_DELETE_LIST} | while read VOLUME_DELETE_DATA
+        echo "Trying to clean last recently used volume first "
+        sort -k3 -n ${VOLUMES_TO_DELETE_LIST} | while read VOLUME_DELETE_DATA
         do
             echo "    marking for deletion volume_data: ${VOLUME_DELETE_DATA} "
             VOLUME_PATH=$(echo ${VOLUME_DELETE_DATA} | cut -d' ' -f1)
