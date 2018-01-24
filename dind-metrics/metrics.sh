@@ -84,7 +84,7 @@ get_dind_pvc_metrics(){
 get_dind_pod_status() {
     local LABEL_SELECTOR=${1:-'app in (dind,runtime)'}
 
-    local TEMPLATE_GET_PODS='{{range .items}}{{.metadata.namespace}}{{"\t"}}{{.metadata.name}}{{"\t"}}{{.status.phase}}{{"\t"}}{{(index .spec.containers 0).resources.requests.cpu}}{{"\t"}}{{"\n"}}{{end}}'
+    local TEMPLATE_GET_PODS='{{range .items}}{{.metadata.namespace}}{{"\t"}}{{.metadata.name}}{{"\t"}}{{.status.phase}}{{"\t"}}{{(index .spec.containers 0).resources.requests.cpu}}{{"\t"}}{{ .spec.nodeName}}{{"\t"}}{{"\n"}}{{end}}'
     local POD_NAMESPACE
     local POD_NAME
     local PHASE
@@ -97,6 +97,7 @@ get_dind_pod_status() {
        POD_NAME=$(echo "$line" | cut -f2)
        PHASE=$(echo "$line" | cut -f3)
        POD_CPU_REQUEST=$(echo "$line" | cut -f4)
+       NODE_NAME=$(echo "$line" | cut -f5)
 
        case $PHASE in
            Pending)
@@ -118,7 +119,7 @@ get_dind_pod_status() {
               POD_STATUS="-2"
            ;;
        esac
-       LABELS="dind_pod_namespace=\"${POD_NAMESPACE}\",dind_pod_name=\"${POD_NAME}\""
+       LABELS="dind_pod_namespace=\"${POD_NAMESPACE}\",dind_pod_name=\"${POD_NAME}\",node=\"${NODE_NAME}\""
        if [[ -n "${POD_STATUS}" ]]; then
          echo "dind_pod_status{$LABELS} ${POD_STATUS}" >> ${METRICS_TMP_dind_pod_status}
        fi
