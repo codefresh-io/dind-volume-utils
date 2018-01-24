@@ -119,7 +119,7 @@ get_dind_pod_status() {
               POD_STATUS="-2"
            ;;
        esac
-       LABELS="dind_pod_namespace=\"${POD_NAMESPACE}\",dind_pod_name=\"${POD_NAME}\",node=\"${NODE_NAME}\""
+       LABELS="dind_pod_namespace=\"${POD_NAMESPACE}\",dind_pod_name=\"${POD_NAME}\",dind_node_name=\"${NODE_NAME}\""
        if [[ -n "${POD_STATUS}" ]]; then
          echo "dind_pod_status{$LABELS} ${POD_STATUS}" >> ${METRICS_TMP_dind_pod_status}
        fi
