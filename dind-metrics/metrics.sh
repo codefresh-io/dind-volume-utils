@@ -74,7 +74,7 @@ get_dind_pvc_metrics(){
               PVC_STATUS="-2"
            ;;
        esac
-       LABELS="pvc_namespace=\"${PVC_NAMESPACE}\",pvc_name=\"${PVC_NAME}\",storage_class=\"${STORAGE_CLASS}\",dind_pod_name=\"${POD_NAME}\",dind_pod_namespace=\"${POD_NAME}\",runtime_env=\"${RUNTIME_ENV}\""
+       LABELS="pvc_namespace=\"${PVC_NAMESPACE}\",pvc_name=\"${PVC_NAME}\",storage_class=\"${STORAGE_CLASS}\",dind_pod_name=\"${POD_NAME}\",dind_pod_namespace=\"${POD_NAMESPACE}\",runtime_env=\"${RUNTIME_ENV}\""
        if [[ -n "${PVC_STATUS}" ]]; then
          echo "dind_pvc_status{$LABELS} ${PVC_STATUS}" >> ${METRICS_TMP_dind_pvc_status}
        fi
