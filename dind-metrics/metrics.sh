@@ -14,22 +14,55 @@ if [[ ! -d "${METRICS_DIR}" ]]; then
    mkdir -p "${METRICS_DIR}"
 fi
 
-METRICS_dind_pvc_status="${METRICS_DIR}"/dind_pvc_status.prom
-METRICS_TMP_dind_pvc_status="${METRICS_DIR}"/dind_pvc_status.prom.tmp.$$
-echo "dind_pvc_status metric collected to ${METRICS_dind_pvc_status} "
+### Creating Metric Variables for temporary file names
+METRIC_NAMES=(dind_pvc_status dind_pod_status dind_pod_cpu_request \
+         dind_volume_phase dind_volume_creation_ts dind_volume_mount_count dind_volume_last_mount_ts )
 
-METRICS_dind_pod_status="${METRICS_DIR}"/dind_pod_status.prom
-METRICS_TMP_dind_pod_status="${METRICS_DIR}"/dind_pod_status.prom.tmp.$$
-echo "dind_pod_status metric collected to ${METRICS_dind_pod_status} "
+for i in ${METRIC_NAMES[@]}; do
+    eval METRICS_${i}="${METRICS_DIR}"/${i}.prom
+    eval METRICS_TMP_${i}="${METRICS_DIR}"/${i}.prom.tmp.$$
+    eval echo "$i metric collected to \$METRICS_${i} "
+done
 
-METRICS_dind_pod_cpu_request="${METRICS_DIR}"/dind_pod_cpu_request.prom
-METRICS_TMP_dind_pod_cpu_request="${METRICS_DIR}"/dind_pod_cpu_request.tmp.$$
-echo "dind_pod_cpu_request metric collected to ${METRICS_dind_pod_cpu_request} "
+create_metrics_headers(){
+        cat <<EOF > "${METRICS_TMP_dind_pvc_status}"
+# TYPE dind_pvc_status gauge
+# HELP dind_pvc_status - status of dind pvc: 0 - Pending, 1 - Bound, -1 - Lost
+EOF
 
-METRICS_dind_volume_pod_status="${METRICS_DIR}"/dind_volume_pod_status.prom
-METRICS_TMP_dind_volume_pod_status="${METRICS_DIR}"/dind_pod_volume_status.prom.tmp.$$
-echo "dind_volume_pod_status metric collected to ${METRICS_dind_volume_pod_status} "
+    cat <<EOF > "${METRICS_TMP_dind_pod_status}"
+# TYPE dind_pod_status gauge
+# HELP dind_pod_status - dind pod status 0 - Pending, 1 - Running, 2 - Succeded, 3 - Failed, -1 - Unknown
+EOF
 
+    cat <<EOF > "${METRICS_TMP_dind_pod_cpu_request}"
+# TYPE dind_pod_cpu_request gauge
+# HELP dind_pod_cpu_request pod cpu requests in mCpu
+EOF
+
+    cat <<EOF > "${METRICS_TMP_dind_volume_phase}"
+# TYPE dind_volume_phase gauge
+# HELP dind_volume_phase - volume phase 0 - Pending, 1 - Bound, 2 - Released, 3 - Failed, -1 - Unknown
+EOF
+
+    cat <<EOF > "${METRICS_TMP_dind_volume_creation_ts}"
+# TYPE dind_volume_creation_ts gauge
+# HELP dind_volume_creation_ts backend volume creation timestamp
+EOF
+
+    cat <<EOF > "${METRICS_TMP_dind_volume_mount_count}"
+# TYPE dind_volume_mount_count gauge
+# HELP dind_volume_mount_count volume mounts count
+EOF
+
+    cat <<EOF > "${METRICS_TMP_dind_volume_last_mount_ts}"
+# TYPE dind_volume_last_mount_ts gauge
+# HELP dind_volume_last_mount_ts volume last mount timestamp
+EOF
+}
+
+
+# echo "Debug exit " && exit 0
 get_dind_pvc_metrics(){
 
     local LABEL_SELECTOR=${1:-'codefresh-app=dind'}
@@ -130,30 +163,106 @@ get_dind_pod_status() {
 }
 
 
+TEMPLATE_GET_PV='{{range .items}}{{.metadata.name}}{{"\t"}}{{.spec.storageClassName}}'
+TEMPLATE_GET_PV+='{{"\t"}}{{.status.phase}}{{"\t"}}{{.spec.persistentVolumeReclaimPolicy}}'
+TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.annotations "codefresh.io/mount-count" }}'
+TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.annotations "codefresh.io/backendVolumeTimestamp" }}'
+TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.creationTimestamp }}'
+TEMPLATE_GET_PV+='{{"\t"}}{{if .spec.local }}local{{"\t"}}{{ .spec.local.path }}'
+TEMPLATE_GET_PV+='  {{ else if .spec.rbd }}rbd{{"\t"}}{{ .spec.rbd.image }}'
+TEMPLATE_GET_PV+='  {{ else if .spec.awsElasticBlockStore }}ebs{{"\t"}}{{ .spec.awsElasticBlockStore.volumeID }}{{ end }}'
+
+TEMPLATE_GET_PV+='{{"\n"}}{{end}}'
+get_dind_volumes_metrics(){
+    local PV_NAME
+    local STORAGE_CLASS    
+    local PHASE
+    local RECLAIM_POLICY
+    local MOUNT_COUNT
+    local VOLUME_CREATION_TS
+    local LAST_MOUNT_TS
+    local BACKEND_VOLUME_TYPE
+    local BACKEND_VOLUME_ID
+
+    local VOLUMES_METRICS=(dind_volume_phase dind_volume_creation_ts dind_volume_mount_count dind_volume_last_mount_ts)
+
+    local dind_volume_phase_VALUE
+    local dind_volume_creation_ts_VALUE
+    local dind_volume_mount_count_VALUE
+    local dind_volume_last_mount_ts_VALUE
+
+    kubectl get pv -l codefresh-app=dind -ogo-template="$TEMPLATE_GET_PV" | while read line
+    do
+       PV_NAME=$(echo "$line" | cut -f1)
+       STORAGE_CLASS=$(echo "$line" | cut -f2)
+       PHASE=$(echo "$line" | cut -f3)
+       RECLAIM_POLICY=$(echo "$line" | cut -f4)
+       MOUNT_COUNT=$(echo "$line" | cut -f5)
+       VOLUME_CREATION_TS=$(echo "$line" | cut -f6)
+       LAST_MOUNT_TS=$(echo "$line" | cut -f7)
+       BACKEND_VOLUME_TYPE=$(echo "$line" | cut -f8)
+       BACKEND_VOLUME_ID=$(echo "$line" | cut -f9)
+
+       
+       case $PHASE in
+           Pending)
+              dind_volume_phase_VALUE="0"
+           ;;
+           Bound)
+              dind_volume_phase_VALUE="1"
+           ;;
+           Released)
+              dind_volume_phase_VALUE="2"
+           ;;
+           Failed)
+              dind_volume_phase_VALUE="3"
+           ;;
+           Unknown)
+              dind_volume_phase_VALUE="-1"
+           ;;
+           *)
+       esac
+       dind_volume_mount_count_VALUE=${MOUNT_COUNT}
+       dind_volume_creation_ts_VALUE=$(date -d ${VOLUME_CREATION_TS} +%s ) || echo "Invalid VOLUME_CREATION_TS for $PV_NAME"
+       dind_volume_last_mount_ts_VALUE=$(date -d ${LAST_MOUNT_TS} +%s ) || echo "Invalid LAST_MOUNT_TS for $PV_NAME"
+       
+       LABELS="storage_class=\"${STORAGE_CLASS}\",reclaim_policy=\"${RECLAIM_POLICY}\",backend_volume_type=\"${BACKEND_VOLUME_TYPE}\",backend_volume_id=\"${BACKEND_VOLUME_ID}\""
+       
+       for i in ${VOLUMES_METRICS[@]}; do
+         local METRIC_VALUE=$(eval echo \$${i}_VALUE)
+         local METRIC_TMP_FILE=$(eval echo \$METRICS_TMP_${i})
+         if [[ -n "${METRIC_VALUE}" ]]; then
+           echo "${i}{$LABELS} ${METRIC_VALUE}" >> ${METRIC_TMP_FILE}
+         fi
+       done       
+    #    #dind_volume_phase dind_volume_creation_ts dind_volume_mount_count dind_volume_last_mount_ts
+    #    echo "dind_volume_phase{$LABELS} ${PHASE_VALUE}" >> ${METRICS_TMP_dind_volume_phase}
+    #    echo "dind_volume_mount_count{$LABELS} ${MOUNT_COUNT}" >> ${METRICS_TMP_dind_volume_mount_count}
+    #    echo "dind_volume_creation_ts{$LABELS} ${VOLUME_CREATION_TS_VALUE}" >> ${METRICS_TMP_dind_volume_creation_ts}
+    #    echo "dind_volume_last_mount_ts{$LABELS} ${LAST_MOUNT_TS_VALUE}" >> ${METRICS_TMP_dind_volume_last_mount_ts}   
+
+    done
+
+}
+
 while true; do
-    cat <<EOF > "${METRICS_TMP_dind_pvc_status}"
-# TYPE dind_pvc_status gauge
-# HELP dind_pvc_status - status of dind pvc: 0 - Pending, 1 - Bound, -1 - Lost
-EOF
 
-    cat <<EOF > "${METRICS_TMP_dind_pod_status}"
-# TYPE dind_pod_status gauge
-# HELP dind_pod_status - dind pod status 0 - Pending, 1 - Running, 2 - Succeded, 3 - Failed, -1 - Unknown
-EOF
-
-    cat <<EOF > "${METRICS_TMP_dind_pod_cpu_request}"
-# TYPE dind_pod_cpu_request gauge
-# HELP dind_pod_cpu_request pod cpu requests in mCpu
-EOF
+    create_metrics_headers
 
     get_dind_pvc_metrics 'codefresh-app=dind'
 
     get_dind_pod_status 'app in (dind,runtime)'
     get_dind_pod_status 'codefresh-app=dind'
 
-    mv "${METRICS_TMP_dind_pvc_status}" "${METRICS_dind_pvc_status}"
-    mv "${METRICS_TMP_dind_pod_status}" "${METRICS_dind_pod_status}"
-    mv "${METRICS_TMP_dind_pod_cpu_request}" "${METRICS_dind_pod_cpu_request}"
+    get_dind_volumes_metrics
+
+    for i in ${METRIC_NAMES[@]}; do
+       eval mv \$METRICS_TMP_${i} \$METRICS_${i}
+    done
+
+    # mv "${METRICS_TMP_dind_pvc_status}" "${METRICS_dind_pvc_status}"
+    # mv "${METRICS_TMP_dind_pod_status}" "${METRICS_dind_pod_status}"
+    # mv "${METRICS_TMP_dind_pod_cpu_request}" "${METRICS_dind_pod_cpu_request}"
 
    sleep $COLLECT_INTERVAL
 done
