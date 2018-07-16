@@ -115,8 +115,8 @@ get_dind_pvc_metrics(){
     kubectl get pvc -a --all-namespaces -l "$LABEL_SELECTOR" -ogo-template="$TEMPLATE_GET_PVC" > ${TMP_FILE}
     cat ${TMP_FILE} | while read line
     do
-       PVC_NAMESPACE=$(echo "$line" | cut -f1 )
-       PVC_NAME=$(echo "$line" | cut -f2 )
+       PVC_NAMESPACE=$(echo "$line" | cut -f2 )
+       PVC_NAME=$(echo "$line" | cut -f1 )
        PHASE=$(echo "$line" | cut -f3)
        STORAGE_CLASS=$(echo "$line" | cut -f4)
        POD_NAMESPACE=$(echo "$line" | cut -f5)
