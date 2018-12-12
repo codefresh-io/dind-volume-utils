@@ -1,3 +1,9 @@
 #!/bin/bash
 #
-kubectl patch pv -p '{"spec":{"persistentVolumeReclaimPolicy":"Delete"}}' $@
+
+if [[ -n "${KUBECONTEXT}" ]]; then
+   KUBECONTEXT_PARAM="--context ${KUBECONTEXT}"
+fi
+
+
+kubectl ${KUBECONTEXT_PARAM} patch pv -p '{"spec":{"persistentVolumeReclaimPolicy":"Delete"}}' $@

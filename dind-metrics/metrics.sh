@@ -206,7 +206,11 @@ get_dind_volumes_metrics(){
     TEMPLATE_GET_PV+='{{"\t"}}{{.spec.persistentVolumeReclaimPolicy}}'
     TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.annotations "codefresh.io/mount-count" }}'
     TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.annotations "codefresh.io/backendVolumeTimestamp" }}'
-    TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.creationTimestamp }}'
+
+    TEMPLATE_GET_PV+='{{"\t"}}{{- if (index .metadata.annotations "codefresh.io/lastUsedTimestamp" )}}'
+    TEMPLATE_GET_PV+='   {{index .metadata.annotations "codefresh.io/lastUsedTimestamp"}}'
+    TEMPLATE_GET_PV+='{{- else}}{{.metadata.creationTimestamp }}{{- end }}'
+
     TEMPLATE_GET_PV+='{{"\t"}}{{- if .spec.local }}local{{"\t"}}{{ .spec.local.path }}'
     TEMPLATE_GET_PV+='  {{- else if .spec.rbd }}rbd{{"\t"}}{{ .spec.rbd.image }}'
     TEMPLATE_GET_PV+='  {{- else if .spec.awsElasticBlockStore }}ebs{{"\t"}}{{ .spec.awsElasticBlockStore.volumeID }}{{- end }}'

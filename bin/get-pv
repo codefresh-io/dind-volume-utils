@@ -4,14 +4,24 @@
 #TEMPLATE='{{range .items}}{{.metadata.name}}{{"\t"}}{{.status.phase}}/{{.spec.persistentVolumeReclaimPolicy}}{{"\t"}}{{index .metadata.annotations "codefresh.io/backendVolumeTimestamp" }}{{"\t"}}{{index .metadata.labels "repo_name"}}{{"\t"}}{{"\t"}}{{index .metadata.annotations "codefresh.io/usedBy" }}{{"\n"}}{{end}}'
 
 TEMPLATE_GET_PV='{{range .items}}{{.metadata.namespace}}{{"\t"}}{{.metadata.name}}{{"\t"}}{{.spec.storageClassName}}'
-TEMPLATE_GET_PV+='{{"\t"}}{{.status.phase}}/{{.spec.persistentVolumeReclaimPolicy}}'
+#TEMPLATE_GET_PV+='{{"\t"}}{{.status.phase}}/{{.spec.persistentVolumeReclaimPolicy}}'
 TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.annotations "codefresh.io/mount-count" }}'
 TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.annotations "codefresh.io/backendVolumeTimestamp" }}'
-TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.creationTimestamp }}'
-TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.labels "account_name"}}/{{index .metadata.labels "pipeline_id"}}'
-TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.labels "pod_name"}}'
+TEMPLATE_GET_PV+='{{"\t"}}{{if (index .metadata.annotations "codefresh.io/lastUsedTimestamp" )}}'
+TEMPLATE_GET_PV+='   {{index .metadata.annotations "codefresh.io/lastUsedTimestamp"}}'
+TEMPLATE_GET_PV+='{{else}}{{.metadata.creationTimestamp }}{{ end }}'
+#TEMPLATE_GET_PV+='{{"\t"}}{{if .spec.local }}local{{"\t"}}{{ .spec.local.path }}'
+#TEMPLATE_GET_PV+='  {{ else if .spec.rbd }}rbd{{"\t"}}{{ .spec.rbd.image }}'
+#TEMPLATE_GET_PV+='  {{ else if .spec.awsElasticBlockStore }}ebs{{"\t"}}{{ .spec.awsElasticBlockStore.volumeID }}{{ end }}'
+
+#TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.labels "account_name"}}/{{index .metadata.labels "pipeline_id"}}'
+#TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.labels "pod_name"}}'
 # TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.labels "runtime_env" }}'
 
 TEMPLATE_GET_PV+='{{"\n"}}{{end}}'
 
-kubectl get pv -l codefresh-app=dind -ogo-template="$TEMPLATE_GET_PV"
+if [[ -n "${KUBECONTEXT}" ]]; then
+   KUBECONTEXT_PARAM="--context ${KUBECONTEXT}"
+fi
+
+kubectl ${KUBECONTEXT_PARAM} get pv -l 'codefresh-app in (dind,workspace,dind-save)' -ogo-template="$TEMPLATE_GET_PV"
