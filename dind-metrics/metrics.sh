@@ -259,7 +259,7 @@ get_dind_volumes_metrics(){
     local dind_pvc_volume_mount_count_VALUE
     local dind_pvc_volume_last_mount_ts_VALUE    
 
-    kubectl get pv -l codefresh-app=dind -ogo-template="$TEMPLATE_GET_PV" | while read line
+    kubectl get pv -l 'codefresh-app in (dind,workspace)' -ogo-template="$TEMPLATE_GET_PV" | while read line
     do
        PV_NAME=$(echo "$line" | cut -f1)
        STORAGE_CLASS=$(echo "$line" | cut -f2)
