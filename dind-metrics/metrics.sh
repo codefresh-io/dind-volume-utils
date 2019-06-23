@@ -96,8 +96,9 @@ get_dind_pvc_metrics(){
     TEMPLATE_GET_PVC+='{{"\t"}}{{index .metadata.labels "pod_namespace" }}'
     TEMPLATE_GET_PVC+='{{"\t"}}{{index .metadata.labels "pod_name" }}'
     TEMPLATE_GET_PVC+='{{"\t"}}{{index .metadata.labels "runtime_env" }}'
-    TEMPLATE_GET_PVC+='{{"\t"}}{{index .metadata.labels "account_name" }}'
+    TEMPLATE_GET_PVC+='{{"\t"}}{{index .metadata.labels "io.codefresh.accountName" }}'
     TEMPLATE_GET_PVC+='{{"\t"}}{{index .metadata.labels "pipeline_id" }}'
+    TEMPLATE_GET_PVC+='{{"\t"}}{{.metadata.annotations.workflow_url}}'
     TEMPLATE_GET_PVC+='{{"\n"}}{{end}}'
 
     local LABELS
@@ -124,6 +125,7 @@ get_dind_pvc_metrics(){
        RUNTIME_ENV=$(echo "$line" | cut -f7)
        ACCOUNT_NAME=$(echo "$line" | cut -f8)
        PIPELINE_ID=$(echo "$line" | cut -f9)
+       WORKFLOW_URL=$(echo "$line" | cut -f10)
 
        case $PHASE in
            Pending)
@@ -141,7 +143,7 @@ get_dind_pvc_metrics(){
        esac
        LABELS="pvc_namespace=\"${PVC_NAMESPACE}\",pvc_name=\"${PVC_NAME}\",storage_class=\"${STORAGE_CLASS}\""
        LABELS+=",dind_pod_name=\"${POD_NAME}\",dind_pod_namespace=\"${POD_NAMESPACE}\""
-       LABELS+=",runtime_env=\"${RUNTIME_ENV}\",account_name=\"${ACCOUNT_NAME}\",pipeline_id=\"${PIPELINE_ID}\""
+       LABELS+=",runtime_env=\"${RUNTIME_ENV}\",io_codefresh_accountName=\"${ACCOUNT_NAME}\",pipeline_id=\"${PIPELINE_ID}\",workflow_url=\"${WORKFLOW_URL}\""
        if [[ -n "${PVC_STATUS}" ]]; then
          echo "dind_pvc_status{$LABELS} ${PVC_STATUS}" >> ${METRICS_TMP_dind_pvc_status}
        fi
@@ -151,7 +153,7 @@ get_dind_pvc_metrics(){
 get_dind_pod_status() {
     local LABEL_SELECTOR=${1:-'app in (dind,runtime)'}
 
-    local TEMPLATE_GET_PODS='{{range .items}}{{.metadata.namespace}}{{"\t"}}{{.metadata.name}}{{"\t"}}{{.status.phase}}{{"\t"}}{{(index .spec.containers 0).resources.requests.cpu}}{{"\t"}}{{ .spec.nodeName}}{{"\t"}}{{"\n"}}{{end}}'
+    local TEMPLATE_GET_PODS='{{range .items}}{{.metadata.namespace}}{{"\t"}}{{.metadata.name}}{{"\t"}}{{.status.phase}}{{"\t"}}{{(index .spec.containers 0).resources.requests.cpu}}{{"\t"}}{{.metadata.annotations.workflow_url}}{{"\t"}}{{ .spec.nodeName}}{{"\t"}}{{"\n"}}{{end}}'
     local POD_NAMESPACE
     local POD_NAME
     local PHASE
@@ -164,7 +166,8 @@ get_dind_pod_status() {
        POD_NAME=$(echo "$line" | cut -f2)
        PHASE=$(echo "$line" | cut -f3)
        POD_CPU_REQUEST=$(echo "$line" | cut -f4)
-       NODE_NAME=$(echo "$line" | cut -f5)
+       WORKFLOW_URL=$(echo "$line" | cut -f5)
+       NODE_NAME=$(echo "$line" | cut -f6)
 
        case $PHASE in
            Pending)
@@ -186,7 +189,7 @@ get_dind_pod_status() {
               POD_STATUS="-2"
            ;;
        esac
-       LABELS="dind_pod_namespace=\"${POD_NAMESPACE}\",dind_pod_name=\"${POD_NAME}\",dind_node_name=\"${NODE_NAME}\""
+       LABELS="dind_pod_namespace=\"${POD_NAMESPACE}\",dind_pod_name=\"${POD_NAME}\",dind_node_name=\"${NODE_NAME}\",workflow_url=\"${WORKFLOW_URL}\""
        if [[ -n "${POD_STATUS}" ]]; then
          echo "dind_pod_status{$LABELS} ${POD_STATUS}" >> ${METRICS_TMP_dind_pod_status}
        fi
@@ -221,7 +224,7 @@ get_dind_volumes_metrics(){
     TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.labels "pod_namespace" }}'
     TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.labels "pod_name" }}'
     TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.labels "runtime_env" }}'
-    TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.labels "account_name" }}'
+    TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.labels "io.codefresh.accountName" }}'
     TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.labels "pipeline_id" }}'
 
     TEMPLATE_GET_PV+='{{"\n"}}{{end}}'
@@ -313,7 +316,7 @@ get_dind_volumes_metrics(){
        LABELS_PVC=${LABELS}
        LABELS_PVC+=",volume_name=\"${PV_NAME}\",pvc_namespace=\"${PVC_NAMESPACE}\",pvc_name=\"${PVC_NAME}\",storage_class=\"${STORAGE_CLASS}\""
        LABELS_PVC+=",dind_pod_name=\"${POD_NAME}\",dind_pod_namespace=\"${POD_NAMESPACE}\""
-       LABELS_PVC+=",runtime_env=\"${RUNTIME_ENV}\",account_name=\"${ACCOUNT_NAME}\",pipeline_id=\"${PIPELINE_ID}\""
+       LABELS_PVC+=",runtime_env=\"${RUNTIME_ENV}\",io_codefresh_accountName=\"${ACCOUNT_NAME}\",pipeline_id=\"${PIPELINE_ID}\""
 
        for i in ${VOLUMES_METRICS[@]}; do
          local METRIC_VALUE=$(eval echo \$${i}_VALUE)
