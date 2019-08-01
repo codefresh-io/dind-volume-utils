@@ -214,9 +214,13 @@ get_dind_volumes_metrics(){
     TEMPLATE_GET_PV+='   {{index .metadata.annotations "codefresh.io/lastUsedTimestamp"}}'
     TEMPLATE_GET_PV+='{{- else}}{{.metadata.creationTimestamp }}{{- end }}'
 
-    TEMPLATE_GET_PV+='{{"\t"}}{{- if .spec.local }}local{{"\t"}}{{ .spec.local.path }}'
-    TEMPLATE_GET_PV+='  {{- else if .spec.rbd }}rbd{{"\t"}}{{ .spec.rbd.image }}'
-    TEMPLATE_GET_PV+='  {{- else if .spec.awsElasticBlockStore }}ebs{{"\t"}}{{ .spec.awsElasticBlockStore.volumeID }}{{- end }}'
+    TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.labels "backend-volume-type" }}'
+    TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.annotations "backend-volume-id" }}'
+   
+   #  deprecated since we added labels backend-volume-id-md5,backend-volume-type and annotation  backend-volume-id
+   #  TEMPLATE_GET_PV+='{{"\t"}}{{- if .spec.local }}local{{"\t"}}{{ .spec.local.path }}'
+   #  TEMPLATE_GET_PV+='  {{- else if .spec.rbd }}rbd{{"\t"}}{{ .spec.rbd.image }}'
+   #  TEMPLATE_GET_PV+='  {{- else if .spec.awsElasticBlockStore }}ebs{{"\t"}}{{ .spec.awsElasticBlockStore.volumeID }}{{- end }}'
 
     TEMPLATE_GET_PV+='{{"\t"}}{{if .spec.claimRef }}{{index .spec.claimRef "name" }}{{ end}}'
     TEMPLATE_GET_PV+='{{"\t"}}{{if .spec.claimRef }}{{index .spec.claimRef "namespace" }}{{ end}}'
@@ -226,6 +230,7 @@ get_dind_volumes_metrics(){
     TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.labels "runtime_env" }}'
     TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.labels "io.codefresh.accountName" }}'
     TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.labels "pipeline_id" }}'
+    TEMPLATE_GET_PV+='{{"\t"}}{{index .metadata.labels "backend-volume-id-md5" }}'
 
     TEMPLATE_GET_PV+='{{"\n"}}{{end}}'
 
@@ -248,6 +253,7 @@ get_dind_volumes_metrics(){
     local RUNTIME_ENV
     local ACCOUNT_NAME
     local PIPELINE_ID
+    local BACKEND_VOLUME_ID_MD5
 
     local VOLUMES_METRICS=(dind_volume_phase dind_volume_creation_ts dind_volume_mount_count dind_volume_last_mount_ts)
     local VOLUMES_PVC_METRICS=(dind_pvc_volume_phase dind_pvc_volume_creation_ts dind_pvc_volume_mount_count dind_pvc_volume_last_mount_ts)
@@ -281,6 +287,7 @@ get_dind_volumes_metrics(){
        RUNTIME_ENV=$(echo "$line" | cut -f14)
        ACCOUNT_NAME=$(echo "$line" | cut -f15)
        PIPELINE_ID=$(echo "$line" | cut -f16)
+       BACKEND_VOLUME_ID_MD5=$(echo "$line" | cut -f17)
        
        case $PHASE in
            Pending)
@@ -311,7 +318,7 @@ get_dind_volumes_metrics(){
        dind_volume_last_mount_ts_VALUE=$(date -d ${LAST_MOUNT_TS} +%s ) || echo "Invalid LAST_MOUNT_TS for $PV_NAME"
        dind_pvc_volume_last_mount_ts_VALUE=${dind_volume_last_mount_ts_VALUE}
        
-       LABELS="storage_class=\"${STORAGE_CLASS}\",reclaim_policy=\"${RECLAIM_POLICY}\",backend_volume_type=\"${BACKEND_VOLUME_TYPE}\",backend_volume_id=\"${BACKEND_VOLUME_ID}\""
+       LABELS="storage_class=\"${STORAGE_CLASS}\",reclaim_policy=\"${RECLAIM_POLICY}\",backend_volume_type=\"${BACKEND_VOLUME_TYPE}\",backend_volume_id=\"${BACKEND_VOLUME_ID}\",backend_volume_id_md5=\"${BACKEND_VOLUME_ID_MD5}\""
        
        LABELS_PVC=${LABELS}
        LABELS_PVC+=",volume_name=\"${PV_NAME}\",pvc_namespace=\"${PVC_NAMESPACE}\",pvc_name=\"${PVC_NAME}\",storage_class=\"${STORAGE_CLASS}\""
