@@ -15,9 +15,19 @@ if [[ ! -d "${METRICS_DIR}" ]]; then
 fi
 
 ### Creating Metric Variables for temporary file names
-METRIC_NAMES=(dind_pvc_status dind_pod_status dind_pod_cpu_request \
-         dind_volume_phase dind_volume_creation_ts dind_volume_mount_count dind_volume_last_mount_ts \ 
-         dind_pvc_volume_phase dind_pvc_volume_creation_ts dind_pvc_volume_mount_count dind_pvc_volume_last_mount_ts )
+METRIC_NAMES=(
+         dind_pvc_status
+         dind_pod_status
+         dind_volume_mount_count
+         dind_volume_last_mount_ts
+         # dind_pvc_volume_mount_count
+         # dind_pvc_volume_last_mount_ts
+         # dind_pod_cpu_request
+         # dind_volume_phase
+         # dind_volume_creation_ts
+         # dind_pvc_volume_phase
+         # dind_pvc_volume_creation_ts
+)
 
 for i in ${METRIC_NAMES[@]}; do
     eval METRICS_${i}="${METRICS_DIR}"/${i}.prom
@@ -36,20 +46,20 @@ EOF
 # HELP dind_pod_status - dind pod status 0 - Pending, 1 - Running, 2 - Succeded, 3 - Failed, -1 - Unknown
 EOF
 
-    cat <<EOF > "${METRICS_TMP_dind_pod_cpu_request}"
-# TYPE dind_pod_cpu_request gauge
-# HELP dind_pod_cpu_request pod cpu requests in mCpu
-EOF
+    # cat <<EOF > "${METRICS_TMP_dind_pod_cpu_request}"
+# # TYPE dind_pod_cpu_request gauge
+# # HELP dind_pod_cpu_request pod cpu requests in mCpu
+# EOF
 
-    cat <<EOF > "${METRICS_TMP_dind_volume_phase}"
-# TYPE dind_volume_phase gauge
-# HELP dind_volume_phase - volume phase 0 - Pending, 1 - Bound, 2 - Released, 3 - Failed, -1 - Unknown
-EOF
+#     cat <<EOF > "${METRICS_TMP_dind_volume_phase}"
+# # TYPE dind_volume_phase gauge
+# # HELP dind_volume_phase - volume phase 0 - Pending, 1 - Bound, 2 - Released, 3 - Failed, -1 - Unknown
+# EOF
 
-    cat <<EOF > "${METRICS_TMP_dind_volume_creation_ts}"
-# TYPE dind_volume_creation_ts gauge
-# HELP dind_volume_creation_ts backend volume creation timestamp
-EOF
+#     cat <<EOF > "${METRICS_TMP_dind_volume_creation_ts}"
+# # TYPE dind_volume_creation_ts gauge
+# # HELP dind_volume_creation_ts backend volume creation timestamp
+# EOF
 
     cat <<EOF > "${METRICS_TMP_dind_volume_mount_count}"
 # TYPE dind_volume_mount_count gauge
@@ -61,25 +71,25 @@ EOF
 # HELP dind_volume_last_mount_ts volume last mount timestamp
 EOF
 
-    cat <<EOF > "${METRICS_TMP_dind_pvc_volume_phase}"
-# TYPE dind_pvc_volume_phase gauge
-# HELP dind_pvc_volume_phase - volume phase 0 - Pending, 1 - Bound, 2 - Released, 3 - Failed, -1 - Unknown
-EOF
+    # cat <<EOF > "${METRICS_TMP_dind_pvc_volume_phase}"
+# # TYPE dind_pvc_volume_phase gauge
+# # HELP dind_pvc_volume_phase - volume phase 0 - Pending, 1 - Bound, 2 - Released, 3 - Failed, -1 - Unknown
+# EOF
 
-    cat <<EOF > "${METRICS_TMP_dind_pvc_volume_creation_ts}"
-# TYPE dind_pvc_volume_creation_ts gauge
-# HELP dind_pvc_volume_creation_ts backend volume creation timestamp
-EOF
+    # cat <<EOF > "${METRICS_TMP_dind_pvc_volume_creation_ts}"
+# # TYPE dind_pvc_volume_creation_ts gauge
+# # HELP dind_pvc_volume_creation_ts backend volume creation timestamp
+# EOF
 
-    cat <<EOF > "${METRICS_TMP_dind_pvc_volume_mount_count}"
-# TYPE dind_pvc_volume_mount_count gauge
-# HELP dind_pvc_volume_mount_count volume mounts count
-EOF
+    # cat <<EOF > "${METRICS_TMP_dind_pvc_volume_mount_count}"
+# # TYPE dind_pvc_volume_mount_count gauge
+# # HELP dind_pvc_volume_mount_count volume mounts count
+# EOF
 
-    cat <<EOF > "${METRICS_TMP_dind_pvc_volume_last_mount_ts}"
-# TYPE dind_pvc_volume_last_mount_ts gauge
-# HELP dind_pvc_volume_last_mount_ts volume last mount timestamp
-EOF
+    # cat <<EOF > "${METRICS_TMP_dind_pvc_volume_last_mount_ts}"
+# # TYPE dind_pvc_volume_last_mount_ts gauge
+# # HELP dind_pvc_volume_last_mount_ts volume last mount timestamp
+# EOF
 }
 
 
@@ -193,9 +203,9 @@ get_dind_pod_status() {
        if [[ -n "${POD_STATUS}" ]]; then
          echo "dind_pod_status{$LABELS} ${POD_STATUS}" >> ${METRICS_TMP_dind_pod_status}
        fi
-       if [[ -n "${POD_CPU_REQUEST}" && ( ${POD_STATUS} == 0 || ${POD_STATUS} == 1 ) ]]; then
-         echo "dind_pod_cpu_request{$LABELS} ${POD_CPU_REQUEST%m}" >> ${METRICS_TMP_dind_pod_cpu_request}
-       fi
+#        if [[ -n "${POD_CPU_REQUEST}" && ( ${POD_STATUS} == 0 || ${POD_STATUS} == 1 ) ]]; then
+         # echo "dind_pod_cpu_request{$LABELS} ${POD_CPU_REQUEST%m}" >> ${METRICS_TMP_dind_pod_cpu_request}
+#        fi
     done
 }
 
@@ -255,8 +265,13 @@ get_dind_volumes_metrics(){
     local PIPELINE_ID
     local BACKEND_VOLUME_ID_MD5
 
-    local VOLUMES_METRICS=(dind_volume_phase dind_volume_creation_ts dind_volume_mount_count dind_volume_last_mount_ts)
-    local VOLUMES_PVC_METRICS=(dind_pvc_volume_phase dind_pvc_volume_creation_ts dind_pvc_volume_mount_count dind_pvc_volume_last_mount_ts)
+    local VOLUMES_METRICS=(
+       #  dind_volume_phase
+       #  dind_volume_creation_ts
+        dind_volume_mount_count
+        dind_volume_last_mount_ts
+    )
+    local VOLUMES_PVC_METRICS=( dind_pvc_volume_phase dind_pvc_volume_creation_ts dind_pvc_volume_mount_count dind_pvc_volume_last_mount_ts)
 
     local dind_volume_phase_VALUE
     local dind_volume_creation_ts_VALUE
@@ -333,13 +348,13 @@ get_dind_volumes_metrics(){
          fi
        done
 
-       for i in ${VOLUMES_PVC_METRICS[@]}; do
-         local METRIC_VALUE=$(eval echo \$${i}_VALUE)
-         local METRIC_TMP_FILE=$(eval echo \$METRICS_TMP_${i})
-         if [[ -n "${METRIC_VALUE}" ]]; then
-           echo "${i}{$LABELS_PVC} ${METRIC_VALUE}" >> ${METRIC_TMP_FILE}
-         fi
-       done
+#        for i in ${VOLUMES_PVC_METRICS[@]}; do
+         # local METRIC_VALUE=$(eval echo \$${i}_VALUE)
+         # local METRIC_TMP_FILE=$(eval echo \$METRICS_TMP_${i})
+         # if [[ -n "${METRIC_VALUE}" ]]; then
+           # echo "${i}{$LABELS_PVC} ${METRIC_VALUE}" >> ${METRIC_TMP_FILE}
+         # fi
+#        done
 
     #    #dind_volume_phase dind_volume_creation_ts dind_volume_mount_count dind_volume_last_mount_ts
     #    echo "dind_volume_phase{$LABELS} ${PHASE_VALUE}" >> ${METRICS_TMP_dind_volume_phase}
