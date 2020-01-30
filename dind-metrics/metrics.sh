@@ -17,7 +17,7 @@ fi
 ### Creating Metric Variables for temporary file names
 METRIC_NAMES=(
          dind_volume_last_mount_ts
-         dind_pvc_volume_mount_count
+         dind_volume_mount_count
 )
 
 for i in ${METRIC_NAMES[@]}; do
@@ -86,7 +86,10 @@ get_dind_volumes_metrics(){
     local PIPELINE_ID
     local BACKEND_VOLUME_ID_MD5
 
-    local VOLUMES_METRICS=( dind_volume_last_mount_ts dind_volume_mount_count)
+    local VOLUMES_METRICS=(
+      dind_volume_last_mount_ts
+      dind_volume_mount_count
+    )
 
     local dind_volume_phase_VALUE
     local dind_volume_creation_ts_VALUE
