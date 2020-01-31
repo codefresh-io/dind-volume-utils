@@ -137,7 +137,7 @@ get_dind_volumes_metrics(){
 
        dind_volume_last_mount_ts_VALUE=$(date -d ${LAST_MOUNT_TS} +%s ) || echo "Invalid LAST_MOUNT_TS for $PV_NAME"
        
-       LABELS="pod_name=\"POD_NAME\",storage_class=\"${STORAGE_CLASS}\",reclaim_policy=\"${RECLAIM_POLICY}\",backend_volume_type=\"${BACKEND_VOLUME_TYPE}\",backend_volume_id=\"${BACKEND_VOLUME_ID}\",backend_volume_id_md5=\"${BACKEND_VOLUME_ID_MD5}\""
+       LABELS="pod_name=\"${POD_NAME}\",storage_class=\"${STORAGE_CLASS}\",reclaim_policy=\"${RECLAIM_POLICY}\",backend_volume_type=\"${BACKEND_VOLUME_TYPE}\",backend_volume_id=\"${BACKEND_VOLUME_ID}\",backend_volume_id_md5=\"${BACKEND_VOLUME_ID_MD5}\""
        
        for i in ${VOLUMES_METRICS[@]}; do
          local METRIC_VALUE=$(eval echo \$${i}_VALUE)
