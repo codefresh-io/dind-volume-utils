@@ -27,10 +27,10 @@ for i in ${METRIC_NAMES[@]}; do
 done
 
 create_metrics_headers(){
-    cat <<EOF > "${METRICS_TMP_dind_volume_mount_count}"
-# TYPE dind_volume_mount_count gauge
-# HELP dind_volume_mount_count volume mounts count
-EOF
+#     cat <<EOF > "${METRICS_TMP_dind_volume_mount_count}"
+# # TYPE dind_volume_mount_count gauge
+# # HELP dind_volume_mount_count volume mounts count
+# EOF
 
     cat <<EOF > "${METRICS_TMP_dind_volume_last_mount_ts}"
 # TYPE dind_volume_last_mount_ts gauge
