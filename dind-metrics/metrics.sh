@@ -91,8 +91,6 @@ get_dind_volumes_metrics(){
       # dind_volume_mount_count
     )
 
-    local dind_volume_phase_VALUE
-    local dind_volume_creation_ts_VALUE
     local dind_volume_mount_count_VALUE
     local dind_volume_last_mount_ts_VALUE
 
@@ -114,30 +112,11 @@ get_dind_volumes_metrics(){
        PIPELINE_ID=$(echo "$line" | cut -f16)
        BACKEND_VOLUME_ID_MD5=$(echo "$line" | cut -f17)
        
-       case $PHASE in
-           Pending)
-              dind_volume_phase_VALUE="0"
-           ;;
-           Bound)
-              dind_volume_phase_VALUE="1"
-           ;;
-           Released)
-              dind_volume_phase_VALUE="2"
-           ;;
-           Failed)
-              dind_volume_phase_VALUE="3"
-           ;;
-           Unknown)
-              dind_volume_phase_VALUE="-1"
-           ;;
-           *)
-       esac
-
        # dind_volume_mount_count_VALUE=${MOUNT_COUNT}
 
        dind_volume_last_mount_ts_VALUE=$(date -d ${LAST_MOUNT_TS} +%s ) || echo "Invalid LAST_MOUNT_TS for $PV_NAME"
        
-       LABELS="dind_pod_name=\"${POD_NAME}\",storage_class=\"${STORAGE_CLASS}\",reclaim_policy=\"${RECLAIM_POLICY}\",backend_volume_type=\"${BACKEND_VOLUME_TYPE}\",backend_volume_id=\"${BACKEND_VOLUME_ID}\",backend_volume_id_md5=\"${BACKEND_VOLUME_ID_MD5}\""
+       LABELS="dind_pod_name=\"${POD_NAME}\", phase=\"${PHASE}\", storage_class=\"${STORAGE_CLASS}\",reclaim_policy=\"${RECLAIM_POLICY}\",backend_volume_type=\"${BACKEND_VOLUME_TYPE}\",backend_volume_id=\"${BACKEND_VOLUME_ID}\",backend_volume_id_md5=\"${BACKEND_VOLUME_ID_MD5}\""
        
        for i in ${VOLUMES_METRICS[@]}; do
          local METRIC_VALUE=$(eval echo \$${i}_VALUE)
