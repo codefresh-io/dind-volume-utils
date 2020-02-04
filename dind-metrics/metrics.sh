@@ -15,9 +15,16 @@ if [[ ! -d "${METRICS_DIR}" ]]; then
 fi
 
 ### Creating Metric Variables for temporary file names
-METRIC_NAMES=(dind_pvc_status dind_pod_status dind_pod_cpu_request \
-         dind_volume_phase dind_volume_creation_ts dind_volume_mount_count dind_volume_last_mount_ts \ 
-         dind_pvc_volume_phase dind_pvc_volume_creation_ts dind_pvc_volume_mount_count dind_pvc_volume_last_mount_ts )
+METRIC_NAMES=(
+         dind_volume_last_mount_ts
+         dind_volume_mount_count
+         dind_volume_phase
+         dind_volume_creation_ts
+         dind_pvc_volume_phase
+         dind_pvc_volume_creation_ts
+         dind_pvc_volume_mount_count
+         dind_pvc_volume_last_mount_ts
+)
 
 for i in ${METRIC_NAMES[@]}; do
     eval METRICS_${i}="${METRICS_DIR}"/${i}.prom
@@ -26,21 +33,6 @@ for i in ${METRIC_NAMES[@]}; do
 done
 
 create_metrics_headers(){
-        cat <<EOF > "${METRICS_TMP_dind_pvc_status}"
-# TYPE dind_pvc_status gauge
-# HELP dind_pvc_status - status of dind pvc: 0 - Pending, 1 - Bound, -1 - Lost
-EOF
-
-    cat <<EOF > "${METRICS_TMP_dind_pod_status}"
-# TYPE dind_pod_status gauge
-# HELP dind_pod_status - dind pod status 0 - Pending, 1 - Running, 2 - Succeded, 3 - Failed, -1 - Unknown
-EOF
-
-    cat <<EOF > "${METRICS_TMP_dind_pod_cpu_request}"
-# TYPE dind_pod_cpu_request gauge
-# HELP dind_pod_cpu_request pod cpu requests in mCpu
-EOF
-
     cat <<EOF > "${METRICS_TMP_dind_volume_phase}"
 # TYPE dind_volume_phase gauge
 # HELP dind_volume_phase - volume phase 0 - Pending, 1 - Bound, 2 - Released, 3 - Failed, -1 - Unknown
@@ -81,124 +73,6 @@ EOF
 # HELP dind_pvc_volume_last_mount_ts volume last mount timestamp
 EOF
 }
-
-
-# echo "Debug exit " && exit 0
-get_dind_pvc_metrics(){
-
-    local LABEL_SELECTOR=${1:-'codefresh-app=dind'}
-
-    local TEMPLATE_GET_PVC='{{range .items}}'
-    TEMPLATE_GET_PVC+='{{.metadata.namespace}}'
-    TEMPLATE_GET_PVC+='{{"\t"}}{{.metadata.name}}'
-    TEMPLATE_GET_PVC+='{{"\t"}}{{.status.phase}}'
-    TEMPLATE_GET_PVC+='{{"\t"}}{{.spec.storageClassName}}'
-    TEMPLATE_GET_PVC+='{{"\t"}}{{index .metadata.labels "pod_namespace" }}'
-    TEMPLATE_GET_PVC+='{{"\t"}}{{index .metadata.labels "pod_name" }}'
-    TEMPLATE_GET_PVC+='{{"\t"}}{{index .metadata.labels "runtime_env" }}'
-    TEMPLATE_GET_PVC+='{{"\t"}}{{index .metadata.labels "io.codefresh.accountName" }}'
-    TEMPLATE_GET_PVC+='{{"\t"}}{{index .metadata.labels "pipeline_id" }}'
-    TEMPLATE_GET_PVC+='{{"\t"}}{{.metadata.annotations.workflow_url}}'
-    TEMPLATE_GET_PVC+='{{"\n"}}{{end}}'
-
-    local LABELS
-    local PVC_NAMESPACE
-    local PVC_NAME
-    local PHASE
-    local STORAGE_CLASS
-    local POD_NAMESPACE
-    local POD_NAME
-    local RUNTIME_ENV
-    local PVC_STATUS
-
-    local TMP_FILE=/tmp/get_dind_pvc_metrics.tmp.$$
-    ### Metric dind_pvc_status
-    kubectl get pvc -a --all-namespaces -l "$LABEL_SELECTOR" -ogo-template="$TEMPLATE_GET_PVC" > ${TMP_FILE}
-    cat ${TMP_FILE} | while read line
-    do
-       PVC_NAMESPACE=$(echo "$line" | cut -f1 )
-       PVC_NAME=$(echo "$line" | cut -f2 )
-       PHASE=$(echo "$line" | cut -f3)
-       STORAGE_CLASS=$(echo "$line" | cut -f4)
-       POD_NAMESPACE=$(echo "$line" | cut -f5)
-       POD_NAME=$(echo "$line" | cut -f6)
-       RUNTIME_ENV=$(echo "$line" | cut -f7)
-       ACCOUNT_NAME=$(echo "$line" | cut -f8)
-       PIPELINE_ID=$(echo "$line" | cut -f9)
-       WORKFLOW_URL=$(echo "$line" | cut -f10)
-
-       case $PHASE in
-           Pending)
-              PVC_STATUS="0"
-           ;;
-           Bound)
-              PVC_STATUS="1"
-           ;;
-           Lost)
-              PVC_STATUS="-1"
-           ;;
-           *)
-              PVC_STATUS="-2"
-           ;;
-       esac
-       LABELS="pvc_namespace=\"${PVC_NAMESPACE}\",pvc_name=\"${PVC_NAME}\",storage_class=\"${STORAGE_CLASS}\""
-       LABELS+=",dind_pod_name=\"${POD_NAME}\",dind_pod_namespace=\"${POD_NAMESPACE}\""
-       LABELS+=",runtime_env=\"${RUNTIME_ENV}\",io_codefresh_accountName=\"${ACCOUNT_NAME}\",pipeline_id=\"${PIPELINE_ID}\",workflow_url=\"${WORKFLOW_URL}\""
-       if [[ -n "${PVC_STATUS}" ]]; then
-         echo "dind_pvc_status{$LABELS} ${PVC_STATUS}" >> ${METRICS_TMP_dind_pvc_status}
-       fi
-    done
-}
-
-get_dind_pod_status() {
-    local LABEL_SELECTOR=${1:-'app in (dind,runtime)'}
-
-    local TEMPLATE_GET_PODS='{{range .items}}{{.metadata.namespace}}{{"\t"}}{{.metadata.name}}{{"\t"}}{{.status.phase}}{{"\t"}}{{(index .spec.containers 0).resources.requests.cpu}}{{"\t"}}{{.metadata.annotations.workflow_url}}{{"\t"}}{{ .spec.nodeName}}{{"\t"}}{{"\n"}}{{end}}'
-    local POD_NAMESPACE
-    local POD_NAME
-    local PHASE
-    local POD_STATUS
-    local POD_CPU_REQUEST
-
-    kubectl get pods -a --all-namespaces -l "${LABEL_SELECTOR}" -ogo-template="${TEMPLATE_GET_PODS}" | while read line
-    do
-       POD_NAMESPACE=$(echo "$line" | cut -f1)
-       POD_NAME=$(echo "$line" | cut -f2)
-       PHASE=$(echo "$line" | cut -f3)
-       POD_CPU_REQUEST=$(echo "$line" | cut -f4)
-       WORKFLOW_URL=$(echo "$line" | cut -f5)
-       NODE_NAME=$(echo "$line" | cut -f6)
-
-       case $PHASE in
-           Pending)
-              POD_STATUS="0"
-           ;;
-           Running)
-              POD_STATUS="1"
-           ;;
-           Succeeded)
-              POD_STATUS="2"
-           ;;
-           Failed)
-              POD_STATUS="3"
-           ;;
-           Unknown)
-              POD_STATUS="-1"
-           ;;
-           *)
-              POD_STATUS="-2"
-           ;;
-       esac
-       LABELS="dind_pod_namespace=\"${POD_NAMESPACE}\",dind_pod_name=\"${POD_NAME}\",dind_node_name=\"${NODE_NAME}\",workflow_url=\"${WORKFLOW_URL}\""
-       if [[ -n "${POD_STATUS}" ]]; then
-         echo "dind_pod_status{$LABELS} ${POD_STATUS}" >> ${METRICS_TMP_dind_pod_status}
-       fi
-       if [[ -n "${POD_CPU_REQUEST}" && ( ${POD_STATUS} == 0 || ${POD_STATUS} == 1 ) ]]; then
-         echo "dind_pod_cpu_request{$LABELS} ${POD_CPU_REQUEST%m}" >> ${METRICS_TMP_dind_pod_cpu_request}
-       fi
-    done
-}
-
 
 get_dind_volumes_metrics(){
     local TEMPLATE_GET_PV='{{range .items}}'
@@ -255,8 +129,18 @@ get_dind_volumes_metrics(){
     local PIPELINE_ID
     local BACKEND_VOLUME_ID_MD5
 
-    local VOLUMES_METRICS=(dind_volume_phase dind_volume_creation_ts dind_volume_mount_count dind_volume_last_mount_ts)
-    local VOLUMES_PVC_METRICS=(dind_pvc_volume_phase dind_pvc_volume_creation_ts dind_pvc_volume_mount_count dind_pvc_volume_last_mount_ts)
+    local VOLUMES_METRICS=(
+      dind_volume_phase
+      dind_volume_creation_ts
+      dind_volume_mount_count
+      dind_volume_last_mount_ts
+    )
+    local VOLUMES_PVC_METRICS=(
+      dind_pvc_volume_phase
+      dind_pvc_volume_creation_ts
+      dind_pvc_volume_mount_count
+      dind_pvc_volume_last_mount_ts
+    )
 
     local dind_volume_phase_VALUE
     local dind_volume_creation_ts_VALUE
@@ -318,7 +202,7 @@ get_dind_volumes_metrics(){
        dind_volume_last_mount_ts_VALUE=$(date -d ${LAST_MOUNT_TS} +%s ) || echo "Invalid LAST_MOUNT_TS for $PV_NAME"
        dind_pvc_volume_last_mount_ts_VALUE=${dind_volume_last_mount_ts_VALUE}
        
-       LABELS="storage_class=\"${STORAGE_CLASS}\",reclaim_policy=\"${RECLAIM_POLICY}\",backend_volume_type=\"${BACKEND_VOLUME_TYPE}\",backend_volume_id=\"${BACKEND_VOLUME_ID}\",backend_volume_id_md5=\"${BACKEND_VOLUME_ID_MD5}\""
+       LABELS="dind_pod_name=\"${POD_NAME}\", phase=\"${PHASE}\", storage_class=\"${STORAGE_CLASS}\",reclaim_policy=\"${RECLAIM_POLICY}\",backend_volume_type=\"${BACKEND_VOLUME_TYPE}\",backend_volume_id=\"${BACKEND_VOLUME_ID}\",backend_volume_id_md5=\"${BACKEND_VOLUME_ID_MD5}\""
        
        LABELS_PVC=${LABELS}
        LABELS_PVC+=",volume_name=\"${PV_NAME}\",pvc_namespace=\"${PVC_NAMESPACE}\",pvc_name=\"${PVC_NAME}\",storage_class=\"${STORAGE_CLASS}\""
@@ -351,24 +235,18 @@ get_dind_volumes_metrics(){
 
 }
 
+
+
+
 while true; do
 
     create_metrics_headers
-
-    get_dind_pvc_metrics 'codefresh-app=dind'
-
-    get_dind_pod_status 'app in (dind,runtime)'
-    get_dind_pod_status 'codefresh-app=dind'
 
     get_dind_volumes_metrics
 
     for i in ${METRIC_NAMES[@]}; do
        eval mv \$METRICS_TMP_${i} \$METRICS_${i}
     done
-
-    # mv "${METRICS_TMP_dind_pvc_status}" "${METRICS_dind_pvc_status}"
-    # mv "${METRICS_TMP_dind_pod_status}" "${METRICS_dind_pod_status}"
-    # mv "${METRICS_TMP_dind_pod_cpu_request}" "${METRICS_dind_pod_cpu_request}"
 
    sleep $COLLECT_INTERVAL
 done
