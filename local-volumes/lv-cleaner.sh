@@ -102,11 +102,11 @@ display_df(){
 }
 
 get_volume_kb_usage(){
-   df ${DF_OPTS} ${VOLUME_PARENT_DIR} | awk 'NR==2 {printf "%d", $3 / $2 * 100}'
+   df --output=pcent ${VOLUME_PARENT_DIR} |sed -e 's/^[ \t]*//' |awk -F'%' 'NR==2 {print $1}' ORS=''
 }
 
 get_volume_inode_usage(){
-   df -i ${DF_OPTS} ${VOLUME_PARENT_DIR} | awk 'NR==2 {printf "%d", $3 / $2 * 100}'
+   df --output=ipcent ${VOLUME_PARENT_DIR} |sed -e 's/^[ \t]*//' |awk -F'%' 'NR==2 {print $1}' ORS=''
 }
 
 get_volume_by_path() {
