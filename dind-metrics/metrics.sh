@@ -206,7 +206,7 @@ get_dind_volumes_metrics(){
        
        LABELS_PVC=${LABELS}
        LABELS_PVC+=",volume_name=\"${PV_NAME}\",pvc_namespace=\"${PVC_NAMESPACE}\",pvc_name=\"${PVC_NAME}\",storage_class=\"${STORAGE_CLASS}\""
-       LABELS_PVC+=",dind_pod_name=\"${POD_NAME}\",dind_pod_namespace=\"${POD_NAMESPACE}\""
+       LABELS_PVC+="dind_pod_namespace=\"${POD_NAMESPACE}\""
        LABELS_PVC+=",runtime_env=\"${RUNTIME_ENV}\",io_codefresh_accountName=\"${ACCOUNT_NAME}\",pipeline_id=\"${PIPELINE_ID}\""
 
        for i in ${VOLUMES_METRICS[@]}; do
