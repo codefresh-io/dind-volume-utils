@@ -1,6 +1,6 @@
 ARG ARCH=amd64
 
-FROM prom/node-exporter:v1.0.0 AS node-exporter
+FROM quay.io/prometheus/node-exporter:v1.0.0
 
 FROM alpine:3.6
 
