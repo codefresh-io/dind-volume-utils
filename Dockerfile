@@ -2,7 +2,7 @@ ARG ARCH=amd64
 
 FROM prom/node-exporter:v1.0.0 AS node-exporter
 
-FROM alpine:3.6
+FROM alpine:4.4
 
 COPY --from=node-exporter /bin/node_exporter /bin/
 
