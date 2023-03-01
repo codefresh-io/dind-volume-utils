@@ -13,6 +13,16 @@ RUN apk add --update curl bash coreutils \
     && curl -L https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl -o /usr/local/bin/kubectl \
     && chmod +x /usr/local/bin/kubectl
 
+# add user
+RUN addgroup --gid 3000 dind-volume-utils && \
+    adduser --uid 3000 --gecos "" --disabled-password \
+    --ingroup dind-volume-utils \
+    --home /home/dind-volume-utils \
+    --shell /bin/bash dind-volume-utils
+USER dind-volume-utils
+
+WORKDIR /home/dind-volume-utils
+
 ADD bin /bin
 ADD monitor /monitor
 ADD dind-metrics /dind-metrics
