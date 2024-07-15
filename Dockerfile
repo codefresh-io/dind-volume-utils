@@ -5,6 +5,8 @@ COPY --from=bitnami/kubectl:1.30.2 /opt/bitnami/kubectl/bin/kubectl /usr/local/b
 
 RUN apk add --update bash coreutils
 
+WORKDIR /home/dind-volume-utils
+
 COPY bin ./bin
 COPY monitor ./monitor
 COPY dind-metrics ./dind-metrics
